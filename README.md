@@ -1,0 +1,1 @@
+An academic activity showcasing my first C# program: a calculator that performs basic arithmetic operations with possible added features. Built to practice programming fundamentals, code structure, and debugging while learning C#.
