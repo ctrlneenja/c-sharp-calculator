@@ -1,176 +1,114 @@
 using System;
+using System.Data;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace WinFormsApp1
 {
     public partial class Form1 : Form
     {
-        private string currentInput = "";
-        private double result = 0;
-        private string currentOperation = "";
-        private bool operationPerformed = false;
-        private bool isParenthesisOpen = false;
+        private bool insertOpenParen = true; // toggle for parentheses
 
         public Form1()
         {
             InitializeComponent();
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        // Handle number button clicks
+        private void Number_Click(object sender, EventArgs e)
         {
-            // Make all calculator buttons round
-            foreach (var ctrl in Controls)
+            Button btn = (Button)sender;
+            textBox1.Text += btn.Text;
+        }
+
+        // Handle operator button clicks (+, -, ×, ÷, etc.)
+        private void Operator_Click(object sender, EventArgs e)
+        {
+            Button btn = (Button)sender;
+            textBox1.Text += " " + btn.Text + " ";
+        }
+
+        // Handle dot and percent
+        private void Special_Click(object sender, EventArgs e)
+        {
+            Button btn = (Button)sender;
+            textBox1.Text += btn.Text;
+        }
+
+        // Handle parentheses
+        private void BtnParen_Click(object sender, EventArgs e)
+        {
+            if (insertOpenParen)
             {
-                if (ctrl is Button btn)
-                {
-                    System.Drawing.Drawing2D.GraphicsPath path = new System.Drawing.Drawing2D.GraphicsPath();
-                    path.AddEllipse(0, 0, btn.Width, btn.Height);
-                    btn.Region = new Region(path);
-
-                    btn.FlatStyle = FlatStyle.Flat;
-                    btn.FlatAppearance.BorderSize = 0;
-                    btn.TabStop = false; // prevents dotted focus rectangle
-
-                    if (btn.Name.StartsWith("btn"))
-                    {
-                        // Operator buttons
-                        btn.BackColor = Color.Orange;
-                        btn.ForeColor = Color.Black;
-                    }
-                    else
-                    {
-                        // Number buttons
-                        btn.BackColor = Color.LightGray;
-                        btn.ForeColor = Color.Black;
-                    }
-                }
-            }
-        }
-
-        // ---------- Number buttons ----------
-        private void button0_Click(object sender, EventArgs e) => AppendNumber("0");
-        private void button1_Click(object sender, EventArgs e) => AppendNumber("1");
-        private void button2_Click(object sender, EventArgs e) => AppendNumber("2");
-        private void button3_Click(object sender, EventArgs e) => AppendNumber("3");
-        private void button4_Click(object sender, EventArgs e) => AppendNumber("4");
-        private void button5_Click(object sender, EventArgs e) => AppendNumber("5");
-        private void button6_Click(object sender, EventArgs e) => AppendNumber("6");
-        private void button7_Click(object sender, EventArgs e) => AppendNumber("7");
-        private void button8_Click(object sender, EventArgs e) => AppendNumber("8");
-        private void button9_Click(object sender, EventArgs e) => AppendNumber("9");
-
-        private void AppendNumber(string num)
-        {
-            currentInput += num;
-            textBox1.Text = currentInput;
-        }
-
-        // ---------- Special buttons ----------
-        private void buttonDot_Click(object sender, EventArgs e)
-        {
-            if (!currentInput.Contains("."))
-            {
-                currentInput += ".";
-                textBox1.Text = currentInput;
-            }
-        }
-
-        private void buttonClear_Click(object sender, EventArgs e)
-        {
-            currentInput = "";
-            result = 0;
-            currentOperation = "";
-            operationPerformed = false;
-            textBox1.Text = "0";
-        }
-
-        private void buttonSign_Click(object sender, EventArgs e)
-        {
-            if (currentInput.StartsWith("-"))
-                currentInput = currentInput.Substring(1);
-            else if (!string.IsNullOrEmpty(currentInput))
-                currentInput = "-" + currentInput;
-
-            textBox1.Text = currentInput;
-        }
-
-        private void buttonParen_Click(object sender, EventArgs e)
-        {
-            if (isParenthesisOpen)
-            {
-                currentInput += ")";
-                isParenthesisOpen = false;
+                textBox1.Text += "(";
             }
             else
             {
-                currentInput += "(";
-                isParenthesisOpen = true;
+                textBox1.Text += ")";
             }
-            textBox1.Text = currentInput;
+
+            insertOpenParen = !insertOpenParen;
         }
 
-        private void buttonPercent_Click(object sender, EventArgs e)
+        // Handle ± sign toggle
+        private void BtnSign_Click(object sender, EventArgs e)
         {
-            if (double.TryParse(currentInput, out double num))
+            string expr = textBox1.Text;
+
+            if (string.IsNullOrWhiteSpace(expr)) return;
+
+            // Find last number in expression
+            int i = expr.Length - 1;
+            while (i >= 0 && (char.IsDigit(expr[i]) || expr[i] == '.'))
+                i--;
+
+            string before = expr.Substring(0, i + 1);
+            string number = expr.Substring(i + 1);
+
+            if (string.IsNullOrEmpty(number)) return;
+
+            if (number.StartsWith("-"))
             {
-                num /= 100;
-                currentInput = num.ToString();
-                textBox1.Text = currentInput;
+                // remove minus
+                number = number.Substring(1);
             }
+            else
+            {
+                // add minus
+                number = "-" + number;
+            }
+
+            textBox1.Text = before + number;
         }
 
-        // ---------- Operator buttons ----------
-        private void btnPlus_Click(object sender, EventArgs e) => SetOperation("+");
-        private void btnMinus_Click(object sender, EventArgs e) => SetOperation("-");
-        private void btnMultiply_Click(object sender, EventArgs e) => SetOperation("x");
-        private void btnDivide_Click(object sender, EventArgs e) => SetOperation("/");
-
-        private void SetOperation(string op)
+        // Clear
+        private void BtnClear_Click(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(currentInput))
-            {
-                result = double.Parse(currentInput);
-                currentInput = "";
-            }
-            currentOperation = op;
-            operationPerformed = true;
+            textBox1.Text = "";
+            insertOpenParen = true;
         }
 
-        private void btnEquals_Click(object sender, EventArgs e) => Evaluate();
-
-        // ---------- Evaluation ----------
-        private void Evaluate()
+        // Evaluate expression with PEMDAS
+        private void BtnEquals_Click(object sender, EventArgs e)
         {
-            if (operationPerformed && !string.IsNullOrEmpty(currentInput))
+            try
             {
-                double secondNumber = double.Parse(currentInput);
+                string expression = textBox1.Text;
 
-                switch (currentOperation)
-                {
-                    case "+":
-                        result += secondNumber;
-                        break;
-                    case "-":
-                        result -= secondNumber;
-                        break;
-                    case "x":
-                        result *= secondNumber;
-                        break;
-                    case "/":
-                        if (secondNumber != 0)
-                            result /= secondNumber;
-                        else
-                        {
-                            MessageBox.Show("Cannot divide by zero");
-                            result = 0;
-                        }
-                        break;
-                }
+                // Replace symbols with valid operators
+                expression = expression.Replace("×", "*").Replace("÷", "/");
+
+                // Use DataTable to compute respecting PEMDAS
+                var result = new DataTable().Compute(expression, null);
 
                 textBox1.Text = result.ToString();
-                currentInput = result.ToString();
-                operationPerformed = false;
+                insertOpenParen = true; // reset parentheses state
+            }
+            catch
+            {
+                MessageBox.Show("Invalid Expression", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
